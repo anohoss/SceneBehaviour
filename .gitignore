@@ -1,0 +1,17 @@
+# Unity
+src/SceneBehaviour/Library/
+src/SceneBehaviour/Temp/
+src/SceneBehaviour/obj/
+src/SceneBehaviour/Logs/
+src/SceneBehaviour/UserSettings/
+src/SceneBehaviour/*.csproj
+src/SceneBehaviour/*.sln
+
+# Visual Studio
+.vs/
+
+# Visual Studio Code
+.vscode/
+
+# Mac
+.DS_Store
