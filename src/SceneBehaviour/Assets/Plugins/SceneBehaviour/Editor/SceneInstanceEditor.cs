@@ -147,11 +147,11 @@ namespace Anoho.SceneBehaviour.Editor
 
             if (IsAddedToSceneList())
             {
-                label.text = $"{sceneName} is added to the scene list.";
+                label.text = $"{sceneName}.scene is added to the scene list.";
             }
             else
             {
-                label.text = $"{sceneName} is not added to the scene list.\nIf you want to load {sceneName} at runtime, add to the scene list.";
+                label.text = $"{sceneName}.scene is not added to the scene list.\nIf you want to load {sceneName} at runtime, add to the scene list.";
             }
         }
 

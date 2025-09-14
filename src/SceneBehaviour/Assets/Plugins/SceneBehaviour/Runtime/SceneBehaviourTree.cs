@@ -84,7 +84,7 @@ namespace Anoho.SceneBehaviour
                 return;
             }
 
-            var wasPaused = ExistsPausedNodeInAncestors(node, true);
+            var wasPausedInAncestors = node.IsPausedInAncestors(false);
 
             var oldParentNode = node.GetParent();
             if (oldParentNode != null)
@@ -97,17 +97,17 @@ namespace Anoho.SceneBehaviour
             node.SetParent(newParentNode);
             newParentNode.AddChild(node);
 
-            var willBePaused = ExistsPausedNodeInAncestors(node, true);
+            var willBePausedInAncestors = node.IsPausedInAncestors(false);
 
-            if (wasPaused != willBePaused)
+            if (wasPausedInAncestors != willBePausedInAncestors)
             {
-                if (willBePaused)
+                if (willBePausedInAncestors)
                 {
-                    node.Pause();
+                    node.OnAncestorPaused();
                 }
                 else
                 {
-                    node.Unpause();
+                    node.OnAncestorUnpaused();
                 }
             }
         }
@@ -153,6 +153,8 @@ namespace Anoho.SceneBehaviour
             return parentNode;
         }
 
+        #region Pause
+
         public void PauseNode(SceneBehaviour behaviour)
         {
             if (behaviour == null)
@@ -192,25 +194,55 @@ namespace Anoho.SceneBehaviour
             {
                 return false;
             }
-            
-            return ExistsPausedNodeInAncestors(node, true);
+
+            return node.IsPaused();
         }
 
-        private bool ExistsPausedNodeInAncestors(SceneBehaviourTreeNode node, bool includeSelf)
+        #endregion Pause
+
+        #region Update
+
+        public void BeforeUpdate()
         {
-            var parent = includeSelf ? node : node.GetParent();
-            while (parent != null)
+            var nodes = instanceIdToNode.Values;
+
+            foreach (var node in nodes)
             {
-                if (parent.IsPaused())
-                {
-                    return true;
-                }
-
-                parent = parent.GetParent();
+                node.BeforeUpdate();
             }
-
-            return false;
         }
+
+        public void AfterUpdate()
+        {
+            var nodes = instanceIdToNode.Values;
+
+            foreach (var node in nodes)
+            {
+                node.AfterUpdate();
+            }
+        }
+
+        public void BeforeLateUpdate()
+        {
+            var nodes = instanceIdToNode.Values;
+
+            foreach (var node in nodes)
+            {
+                node.BeforeLateUpdate();
+            }
+        }
+
+        public void AfterLateUpdate()
+        {
+            var nodes = instanceIdToNode.Values;
+
+            foreach (var node in nodes)
+            {
+                node.AfterLateUpdate();
+            }
+        }
+
+        #endregion Update
     }
 
     internal sealed class SceneBehaviourTreeNode
@@ -249,7 +281,7 @@ namespace Anoho.SceneBehaviour
 
         public void GetChildren(List<SceneBehaviourTreeNode> children)
         {
-            if (children is null)
+            if (children == null)
             {
                 return;
             }
@@ -260,7 +292,7 @@ namespace Anoho.SceneBehaviour
 
         public void AddChild(SceneBehaviourTreeNode child)
         {
-            if (child is null)
+            if (child == null)
             {
                 throw new ArgumentNullException(nameof(child));
             }
@@ -275,7 +307,7 @@ namespace Anoho.SceneBehaviour
 
         public void RemoveChild(SceneBehaviourTreeNode child)
         {
-            if (child is null)
+            if (child == null)
             {
                 throw new ArgumentNullException(nameof(child));
             }
@@ -288,35 +320,159 @@ namespace Anoho.SceneBehaviour
             children.Remove(child);
         }
 
+        public void BeforeUpdate()
+        {
+            if (isPaused)
+            {
+                return;
+            }
+            
+            if (!behaviour)
+            {
+                return;
+            }
+
+            if (!behaviour.isActiveAndEnabled)
+            {
+                return;
+            }
+
+            behaviour.BeforeUpdateInternal();
+        }
+
+        public void AfterUpdate()
+        {
+            if (isPaused)
+            {
+                return;
+            }
+            
+            if (!behaviour)
+            {
+                return;
+            }
+
+            if (!behaviour.isActiveAndEnabled)
+            {
+                return;
+            }
+
+            behaviour.AfterUpdateInternal();
+        }
+
+        public void BeforeLateUpdate()
+        {
+            if (isPaused)
+            {
+                return;
+            }
+            
+            if (!behaviour)
+            {
+                return;
+            }
+
+            if (!behaviour.isActiveAndEnabled)
+            {
+                return;
+            }
+
+            behaviour.BeforeLateUpdateInternal();
+        }
+
+        public void AfterLateUpdate()
+        {
+            if (isPaused)
+            {
+                return;
+            }
+            
+            if (!behaviour)
+            {
+                return;
+            }
+
+            if (!behaviour.isActiveAndEnabled)
+            {
+                return;
+            }
+
+            behaviour.AfterLateUpdateInternal();
+        }
+
         private bool isPaused;
 
-        public bool IsPaused() => isPaused;
+        // NOTE: 親ノードをさかのぼることで判定可能だが、毎フレームの判定には相応の負荷が発生することが予想されるためキャッシュ
+        /// <summary>
+        /// 先祖がポーズされているかどうか
+        /// </summary>
+        private bool isPausedInAncestors;
+
+        public bool IsPaused() => isPaused || isPausedInAncestors;
+
+        public bool IsPausedInAncestors(bool includeSelf)
+        {
+            var parent = includeSelf ? this : GetParent();
+            while (parent != null)
+            {
+                if (parent.isPaused)
+                {
+                    return true;
+                }
+
+                parent = parent.GetParent();
+            }
+
+            return false;
+        }
 
         public void Pause()
         {
-            isPaused = true;
-            
-            if (behaviour != null)
+            if (isPaused)
             {
-                behaviour.OnPause();
+                return;
             }
 
-            foreach (var child in children)
+            isPaused = true;
+
+            // 先祖がポーズされていた場合、既にポーズ関数は実行済みなので何もしない
+            if (!isPausedInAncestors)
             {
-                child.CallOnPauseOnDescendants();
+                if (behaviour != null)
+                {
+                    behaviour.PauseInternal();
+                }
+
+                foreach (var child in children)
+                {
+                    child.OnAncestorPaused();
+                }
             }
         }
 
-        private void CallOnPauseOnDescendants()
+        public void OnAncestorPaused()
         {
-            if (behaviour != null)
+            if (isPausedInAncestors)
             {
-                behaviour.OnPause();
+                return;
             }
 
-            foreach (var child in children)
+            isPausedInAncestors = true;
+
+            // 元々ポーズしていた場合は何もしない（孫までポーズされている）
+            if (!isPaused)
             {
-                child.CallOnPauseOnDescendants();
+                // 先祖がポーズされた場合、自身もポーズする
+                if (behaviour != null)
+                {
+                    behaviour.PauseInternal();
+                }
+
+                // 子ノードにもポーズを伝播
+                foreach (var child in children)
+                {
+                    child.OnAncestorPaused();
+                }
             }
         }
 
@@ -326,30 +482,44 @@ namespace Anoho.SceneBehaviour
             {
                 return;
             }
-            
-            isPaused = false;
-            
-            if (behaviour != null)
-            {
-                behaviour.OnUnpause();
-            }
 
-            foreach (var child in children)
+            isPaused = false;
+
+            if (!isPausedInAncestors)
             {
-                child.CallOnUnpauseOnDescendants();
+                if (behaviour != null)
+                {
+                    behaviour.UnpauseInternal();
+                }
+
+                foreach (var child in children)
+                {
+                    child.OnAncestorUnpaused();
+                }
             }
         }
 
-        private void CallOnUnpauseOnDescendants()
+        public void OnAncestorUnpaused()
         {
-            if (behaviour != null)
+            if (!isPausedInAncestors)
             {
-                behaviour.OnUnpause();
+                return;
             }
 
-            foreach (var child in children)
+            // 先祖が複数ポーズされていた場合はポーズ状態を継続
+            isPausedInAncestors = IsPausedInAncestors(false);
+
+            if (!isPaused && !isPausedInAncestors)
             {
-                child.CallOnUnpauseOnDescendants();
+                if (behaviour != null)
+                {
+                    behaviour.UnpauseInternal();
+                }
+
+                foreach (var child in children)
+                {
+                    child.OnAncestorUnpaused();
+                }
             }
         }
     }

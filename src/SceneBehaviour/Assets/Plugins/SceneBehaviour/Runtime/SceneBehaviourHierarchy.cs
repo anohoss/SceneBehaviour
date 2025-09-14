@@ -6,6 +6,10 @@ namespace Anoho.SceneBehaviour
 {
     internal struct BeforeUpdate { }
 
+    internal struct BeforeLateUpdate { }
+
+    internal struct AfterLateUpdate { }
+
     internal struct AfterUpdate { }
     
     internal static class SceneBehaviourHierarchy
@@ -17,18 +21,6 @@ namespace Anoho.SceneBehaviour
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void RuntimeInitializeOnLoad()
         {
-            var beforeUpdateSystem = new PlayerLoopSystem
-            {
-                type = typeof(BeforeUpdate),
-                updateDelegate = OnBeforeUpdate,
-            };
-
-            var afterUpdateSystem = new PlayerLoopSystem
-            {
-                type = typeof(AfterUpdate),
-                updateDelegate = OnAfterUpdate,
-            };
-
             var playerloop = PlayerLoop.GetDefaultPlayerLoop();
 
             for (var i = 0; i < playerloop.subSystemList.Length; i++)
@@ -40,12 +32,39 @@ namespace Anoho.SceneBehaviour
 
                     var subSystemNum = unityUpdateSystem.subSystemList.Length;
                     var newSubsystemList = new PlayerLoopSystem[subSystemNum + 2];
-                    newSubsystemList[0] = beforeUpdateSystem; // BeforeUpdateはMonoBehaviourよりも先に実行する
+
+                    int shiftIdx = 0;
+                    // MonoBehaviour の Update 呼び出しの前後に SceneBehaviour の更新処理を差し込む
                     for (int j = 0; j < subSystemNum; j++)
                     {
-                        newSubsystemList[j + 1] = unityUpdateSystem.subSystemList[j];
+                        var subSystem = unityUpdateSystem.subSystemList[j];
+
+                        // SceneBehaviour.OnBeforeUpdate は MonoBehaviour.Update よりも先に実行する
+                        if (subSystem.type == typeof(Update.ScriptRunBehaviourUpdate))
+                        {
+                            newSubsystemList[j] = new PlayerLoopSystem
+                            {
+                                type = typeof(BeforeUpdate),
+                                updateDelegate = OnBeforeUpdate,
+                            };
+
+                            shiftIdx += 1;
+                        }
+
+                        newSubsystemList[j + shiftIdx] = unityUpdateSystem.subSystemList[j];
+
+                        // SceneBehaviour.OnAfterUpdate は MonoBehaviour.Update よりも後に実行する
+                        if (subSystem.type == typeof(Update.ScriptRunBehaviourUpdate))
+                        {
+                            newSubsystemList[j + shiftIdx + 1] = new PlayerLoopSystem
+                            {
+                                type = typeof(AfterUpdate),
+                                updateDelegate = OnAfterUpdate,
+                            };
+
+                            shiftIdx += 1;
+                        }
                     }
-                    newSubsystemList[subSystemNum + 1] = afterUpdateSystem; // AfterUpdateはMonoBehaviourよりも後に実行する
 
                     playerloop.subSystemList[i] = new PlayerLoopSystem
                     {
@@ -56,7 +75,60 @@ namespace Anoho.SceneBehaviour
                         loopConditionFunction = unityUpdateSystem.loopConditionFunction,
                     };
 
-                    break;
+                    continue;
+                }
+
+                var isUnityPreLateUpdateSystem = playerloop.subSystemList[i].type == typeof(PreLateUpdate);
+                if (isUnityPreLateUpdateSystem)
+                {
+                    var subsystem = playerloop.subSystemList[i];
+
+                    var subSystemNum = subsystem.subSystemList.Length;
+                    var newSubsystemList = new PlayerLoopSystem[subSystemNum + 2];
+
+                    int shiftIdx = 0;
+                    // MonoBehaviour の LateUpate 呼び出しの前後に SceneBehaviour の更新処理を差し込む
+                    for (int j = 0; j < subSystemNum; j++)
+                    {
+                        var subSystem = subsystem.subSystemList[j];
+
+                        // SceneBehaviour.OnBeforeLateUpdate は MonoBehaviour.LateUpdate よりも先に実行する
+                        if (subSystem.type == typeof(PreLateUpdate.ScriptRunBehaviourLateUpdate))
+                        {
+                            newSubsystemList[j] = new PlayerLoopSystem
+                            {
+                                type = typeof(BeforeLateUpdate),
+                                updateDelegate = OnBeforeLateUpdate,
+                            };
+
+                            shiftIdx += 1;
+                        }
+
+                        newSubsystemList[j + shiftIdx] = subsystem.subSystemList[j];
+
+                        // SceneBehaviour.OnAfterLateUpdate は MonoBehaviour.LateUpdate よりも後に実行する
+                        if (subSystem.type == typeof(PreLateUpdate.ScriptRunBehaviourLateUpdate))
+                        {
+                            newSubsystemList[j + shiftIdx + 1] = new PlayerLoopSystem
+                            {
+                                type = typeof(AfterLateUpdate),
+                                updateDelegate = OnAfterLateUpdate,
+                            };
+
+                            shiftIdx += 1;
+                        }
+                    }
+
+                    playerloop.subSystemList[i] = new PlayerLoopSystem
+                    {
+                        type = subsystem.type,
+                        updateDelegate = subsystem.updateDelegate,
+                        subSystemList = newSubsystemList,
+                        updateFunction = subsystem.updateFunction,
+                        loopConditionFunction = subsystem.loopConditionFunction,
+                    };
+
+                    continue;
                 }
             }
 
@@ -65,22 +137,32 @@ namespace Anoho.SceneBehaviour
 
         private static void OnBeforeUpdate()
         {
-
+            tree.BeforeUpdate();
         }
 
         private static void OnAfterUpdate()
         {
+            tree.AfterUpdate();
+        }
 
+        private static void OnBeforeLateUpdate()
+        {
+            tree.BeforeLateUpdate();
+        }
+
+        private static void OnAfterLateUpdate()
+        {
+            tree.AfterLateUpdate();
         }
 
         #endregion PlayerLoop
 
-        public static void Add(SceneBehaviour behaviour)
+        public static void Register(SceneBehaviour behaviour)
         {
             tree.AddNode(behaviour);
         }
 
-        public static void Remove(SceneBehaviour behaviour)
+        public static void Unregister(SceneBehaviour behaviour)
         {
             tree.RemoveNode(behaviour);
         }

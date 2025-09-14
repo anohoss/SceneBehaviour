@@ -16,8 +16,12 @@ namespace Anoho.SceneBehaviour
             return SceneInstanceRegistry.FindSceneInstance(gameObject.scene.handle);
         }
 
+        private const float DefaultTimeScale = 1.0f;
+
+        private const float MinTimeScale = 0f;
+
         [SerializeField]
-        private float timeScale = 1.0f;
+        private float timeScale = DefaultTimeScale;
 
         public float GetRelativeTimeScale()
         {
@@ -26,9 +30,9 @@ namespace Anoho.SceneBehaviour
 
         public void SetRelativeTimeScale(float newTimeScale)
         {
-            if (newTimeScale < Mathf.Epsilon)
+            if (newTimeScale < MinTimeScale)
             {
-                newTimeScale = Mathf.Epsilon;
+                newTimeScale = MinTimeScale;
             }
 
             timeScale = newTimeScale;
@@ -39,14 +43,14 @@ namespace Anoho.SceneBehaviour
             var timeScale = GetRelativeTimeScale();
 
             var root = GetRoot();
-            if (root != null)
+            if (root)
             {
                 timeScale *= root.GetTimeScale();
             }
             else
             {
                 var sceneInstance = GetSceneInstance();
-                if (sceneInstance != null)
+                if (sceneInstance)
                 {
                     timeScale *= sceneInstance.GetTimeScale();
                 }
@@ -60,7 +64,37 @@ namespace Anoho.SceneBehaviour
             return Time.deltaTime * GetTimeScale();
         }
 
-        public virtual void OnBeforeUpdate() { }
+        #region Update
+
+        protected virtual void OnBeforeUpdate() { }
+
+        protected virtual void OnAfterUpdate() { }
+
+        protected virtual void OnBeforeLateUpdate() { }
+
+        protected virtual void OnAfterLateUpdate() { }
+
+        internal void BeforeUpdateInternal()
+        {
+            OnBeforeUpdate();
+        }
+
+        internal void AfterUpdateInternal()
+        {
+            OnAfterUpdate();
+        }
+
+        internal void BeforeLateUpdateInternal()
+        {
+            OnBeforeLateUpdate();
+        }
+
+        internal void AfterLateUpdateInternal()
+        {
+            OnAfterLateUpdate();
+        }
+
+        #endregion Update
 
         #region Pause
 
@@ -79,9 +113,19 @@ namespace Anoho.SceneBehaviour
             return SceneBehaviourHierarchy.IsPaused(this);
         }
 
-        public virtual void OnPause() { Debug.Log($"{gameObject.name} is paused."); }
+        internal void PauseInternal()
+        {
+            OnPause();
+        }
 
-        public virtual void OnUnpause() { Debug.Log($"{gameObject.name} is unpaused.");}
+        internal void UnpauseInternal()
+        {
+            OnUnpause();
+        }
+
+        protected virtual void OnPause() { }
+
+        protected virtual void OnUnpause() { }
 
         #endregion Pause
 
@@ -93,23 +137,58 @@ namespace Anoho.SceneBehaviour
             RefleshRoot();
 
             // Hierarchyへの追加
-            SceneBehaviourHierarchy.Add(this);
+            SceneBehaviourHierarchy.Register(this);
         }
+
+        protected virtual void Start() { }
+
+        protected virtual void OnEnable() { }
+
+        protected virtual void OnDisable() { }
 
         protected virtual void OnDestroy()
         {
             // Hierarchyからの削除
-            SceneBehaviourHierarchy.Remove(this);
+            SceneBehaviourHierarchy.Unregister(this);
         }
+
+        // FixedUpdate は実行順が影響する処理を書かないため、
+        protected virtual void FixedUpdate() { }
 
         protected virtual void OnTransformParentChanged()
         {
             // 親オブジェクトが変更されたので、Rootを更新する
             RefleshRoot();
 
-            // Rootが変更されたので、Hierarchy上での親を更新する
+            // Rootを更新したので、Hierarchy上での親を更新する
             SceneBehaviourHierarchy.RefleshParent(this);
         }
+
+        protected virtual void OnTransformChildrenChanged() { }
+
+        // Unity の更新イベントは SceneBehaviourでは利用しない
+
+#pragma warning disable UNT0001 // Empty Unity message
+
+        protected void Update() { }
+
+        protected void LateUpdate() { }
+
+#pragma warning restore UNT0001 // Empty Unity message
+
+#if UNITY_EDITOR
+
+        protected virtual void Reset()
+        {
+            timeScale = DefaultTimeScale;
+        }
+
+        protected virtual void OnValidate()
+        {
+            timeScale = Mathf.Max(timeScale, MinTimeScale);
+        }
+
+#endif // UNITY_EDITOR
 
         // End unity methods.
 
