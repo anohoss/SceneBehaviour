@@ -1,0 +1,16 @@
+{
+    "name": "SceneBehaviour",
+    "rootNamespace": "Anoho.SceneBehaviour",
+    "references": [
+        "GUID:cbcff185e090c4f5c99323c6737f2619"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

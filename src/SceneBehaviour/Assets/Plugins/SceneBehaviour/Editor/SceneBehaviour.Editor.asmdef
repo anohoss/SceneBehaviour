@@ -1,0 +1,16 @@
+{
+    "name": "SceneBehaviour.Editor",
+    "rootNamespace": "Anoho.SceneBehaviour.Editor",
+    "references": [
+        "GUID:a46b1765568a1804d8dd315287a996b6"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
