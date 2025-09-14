@@ -1,0 +1,11 @@
+{
+    "name": "com.anoho.scene-management",
+    "displayName": "SceneBehaviour",
+    "author": {
+        "name": "Anoho"
+    },
+    "version": "0.1.0",
+    "unity": "6000.0",
+    "description": "Provides scene management using additive scenes for Unity.",
+    "category": "Scripting"
+}
