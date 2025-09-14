@@ -2,4 +2,4 @@
 Provides scene management using additive scenes for Unity.
 
 # Install via git url
-You can add https://github.com/anohoss/SceneBahaviour.git?path=src/SceneBahaviour/Assets/SceneBahaviour to PackageManager.
+You can add https://github.com/anohoss/SceneBehaviour.git?path=src/SceneBehaviour/Assets/Plugins/SceneBehaviour to PackageManager.
